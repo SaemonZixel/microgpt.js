@@ -33,6 +33,7 @@
 		script.onload = function(){
 			//alert('microgpt.js loaded');
 			btn.disabled = null;
+			window.output.removeChild(window.output.firstChild);
 		};
 		document.head.appendChild(script);
 	}
