@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=1">
+	<meta charset="UTF-8">
+	<title>microgpt.js</title>
+	<script>
+
+    function load_names_txt(btn)
+    {
+		btn.disabled = true;
+		var xhr = new XMLHttpRequest()
+		xhr.open('GET', 'names.txt');
+		xhr.onreadystatechange = function(event){
+			if(event.target.readyState != 4) return;
+			document.querySelector('#input_txt').value = xhr.responseText;
+			btn.disabled = null;
+		};
+		xhr.send();
+	}
+
+	function microgpt_run(btn)
+	{
+		window.input_txt = document.querySelector('#input_txt').value;
+		if(window.input_txt == '') return alert('Training data is empty!?');
+
+		btn.disabled = true;
+		window.output = document.getElementById('output');
+		window.output.innerHTML = '<div>Microgpt is running. Please wait (1-2 minutes)...</div>';
+
+		var script = document.createElement('SCRIPT');
+		script.src = "microgpt.js?ts="+(new Date())*1;
+		script.onload = function(){
+			//alert('microgpt.js loaded');
+			btn.disabled = null;
+		};
+		document.head.appendChild(script);
+	}
+	</script>
+</head>
+<body>
+<textarea id="input_txt" cols="40" rows="8" placeholder="Training data here."></textarea><br>
+<button id="load_txt" onclick="load_names_txt(this)">Load names.txt as training data</button>
+<button id="run_microgpt" onclick="microgpt_run(this)">Run microgpt</button>
+<div id="output" style="margin: 0.5em 0;font-family: monospace;"></div>
+</body>
+</html>
