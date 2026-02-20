@@ -5,6 +5,20 @@
 	<meta charset="UTF-8">
 	<title>microgpt.js</title>
 	<script>
+	window.onerror = function(message, source, lineno, colno, error)
+    {
+        if (error && error.stack) {
+            alert("Stack trace: \n"+error.stack);
+            console.error(error);
+        }
+        else {
+			alert("Exception: "+message+"\n"+
+            "Source: "+source+"\n"+
+            "Line: "+lineno+"\n"+
+            "Column: "+colno+"\n");
+            console.error(message, source, lineno, colno);
+        }
+    }
 
     function load_names_txt(btn)
     {
@@ -21,8 +35,10 @@
 
 	function microgpt_run(btn)
 	{
-		window.input_txt = document.querySelector('#input_txt').value;
+		window.input_txt = document.getElementById('input_txt').value;
 		if(window.input_txt == '') return alert('Training data is empty!?');
+
+		window.steps = document.getElementById('steps').value;
 
 		btn.disabled = true;
 		window.output = document.getElementById('output');
@@ -41,8 +57,10 @@
 </head>
 <body>
 <textarea id="input_txt" cols="40" rows="8" placeholder="Training data here."></textarea><br>
-<button id="load_txt" onclick="load_names_txt(this)">Load names.txt as training data</button>
+<button id="load_txt" onclick="load_names_txt(this)" style="margin-bottom:0.2em">Load names.txt as training data</button>
+<br>
 <button id="run_microgpt" onclick="microgpt_run(this)">Run microgpt</button>
+<input id="steps" type="number" value="" placeholder="steps (default 1000)" style="width:10em">
 <div id="output" style="margin: 0.5em 0;font-family: monospace;"></div>
 </body>
 </html>

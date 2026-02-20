@@ -1,3 +1,4 @@
+
 // python: zip()
 function array_zip(arr1, arr2) {
 	var result = [];
@@ -38,55 +39,29 @@ function array_shuffle(arr) {
 
 // python: random.gauss()
 function random_gauss(mean, stdDev) {
-	var u = 0, v = 0;
-	while(u === 0) u = Math.random();
-	while(v === 0) v = Math.random();
+	var u = Math.random() + 1e-12;
+	var v = Math.random();
 	return mean + stdDev * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
 // python: random.choices()
-function random_choices(population, weights, k) {
-    if (!population || population.length === 0) return [];
-    var n = population.length;
-    if (typeof k !== "number" || k <= 0) k = 1;
+function random_choices(population, weights) {
+	var acc_weights = new Array(weights.length);
+	acc_weights[0] = weights[0];
+    for (var i = 1; i < weights.length; ++i)
+		acc_weights[i] = acc_weights[i-1] + weights[i];
+    var x = Math.random() * acc_weights[acc_weights.length - 1];
 
-    if (!weights) {
-      var resU = [];
-      for (var i = 0; i < k; i++) {
-        resU.push(population[Math.floor(Math.random() * n)]);
-      }
-      return resU;
-    } else {
-      if (weights.length !== n) throw new Error("weights length mismatch");
-      var cum = new Array(n);
-      var total = 0;
-      for (var i = 0; i < n; i++) {
-        var w = weights[i];
-        if (w < 0) w = 0;
-        total += w;
-        cum[i] = total;
-      }
-      if (total <= 0) {
-        var resZero = [];
-        for (var j = 0; j < k; j++) {
-          resZero.push(population[Math.floor(Math.random() * n)]);
-        }
-        return resZero;
-      }
-
-      var res = [];
-      for (var j = 0; j < k; j++) {
-        var r = Math.random() * total;
-        var lo = 0, hi = n - 1, idx = n - 1;
-        while (lo <= hi) {
-          var mid = (lo + hi) >> 1;
-          if (r < cum[mid]) { idx = mid; hi = mid - 1; } else { lo = mid + 1; }
-        }
-        res.push(population[idx]);
-      }
-      return res;
-    }
-};
+    var lo = 0, hi = acc_weights.length - 1;
+    while (lo < hi) {
+		var mid = (lo + hi) >> 1;
+		if(x < acc_weights[mid])
+			hi = mid;
+		else
+			lo = mid + 1;
+	}
+    return [population[lo]];
+}
 
 // python: matrix()
 function matrix(rows, cols, defaultValue) {
@@ -102,18 +77,20 @@ function matrix(rows, cols, defaultValue) {
 
 // python: print()
 function print(msg) {
+	// output - global DOM element
 	if(output) {
 		var new_line = document.createElement('DIV');
 		new_line.innerHTML = msg;
 		output.appendChild(new_line);
 	}
-	else
-		print(msg);
+	console.log(msg);
 }
 
-var docs = input_txt.split('\n')
-			.filter(function(str){ return str != '' && !str.match(/^ +$/); })
-			.map(function(str){ return str.replace(/^ +/, '').replace(/ +$/, ''); });
+var docs = [];
+for (var str of input_txt.split('\n')) {
+	if(str == '' || str.match(/^ +$/)) continue;
+	docs.push(str.replace(/^ +/, '').replace(/ +$/, ''));
+}
 array_shuffle(docs);
 print("num docs: "+docs.length);
 
@@ -126,8 +103,8 @@ for(var i = str.length-1; i>=0; i--)
 var uchars = uchars.sort(); // unique characters in the dataset become token ids 0..n-1
 print("uchars", uchars);
 var BOS = uchars.length; // token id for the special Beginning of Sequence (BOS) token
-var vocab_size = uchars.length + 1 // total number of unique tokens, +1 is for BOS
-print("vocab size: "+vocab_size)
+var vocab_size = uchars.length + 1; // total number of unique tokens, +1 is for BOS
+print("vocab size: "+vocab_size);
 
 function Value(data, children, local_grads) {
 
@@ -158,7 +135,7 @@ Value.prototype.mul = function(other) {
 }
 
 Value.prototype.pow = function(other) {
-	return new Value(this.data**other, [this], [other * this.data**(other-1)]);
+	return new Value(Math.pow(this.data, other), [this], [other * Math.pow(this.data, other-1)]);
 }
 
 Value.prototype.log = function(){
@@ -173,22 +150,17 @@ Value.prototype.relu = function() {
 	return new Value(Math.max(0, this.data), [this], [this.data > 0 ? 1.0 : 0.0]);
 }
 
-// Value.prototype.neg = function() { return this.mul(-1); };
-// Value.prototype.radd = function(other) { return this.add(other); }
 Value.prototype.sub = function(other) {
 	if(other instanceof Value == false)
 		other = new Value(other);
 	return new Value(this.data - other.data, [this, other], [1, 1]);
 }
-// Value.prototype.rsub = function(other) { debugger; return other + (-this); }
-// Value.prototype.rmul = function(other) { return this.mul(other); }
 Value.prototype.truediv = function(other) {
 	if(other instanceof Value == false)
-		return this.mul(other**-1);
+		return this.mul(Math.pow(other, -1));
 	else
 		return this.mul(other.pow(-1));
 }
-// Value.prototype.rtruediv = function(other) { return other * this**-1; }
 
 Value.prototype.backward = function() {
 	var topo = [];
@@ -238,18 +210,19 @@ var state_dict = {
 };
 
 for(var i = 0; i < n_layer; i++) {
-    state_dict['layer'+i+'.attn_wq'] = matrix(n_embd, n_embd)
-    state_dict['layer'+i+'.attn_wk'] = matrix(n_embd, n_embd)
-    state_dict['layer'+i+'.attn_wv'] = matrix(n_embd, n_embd)
-    state_dict['layer'+i+'.attn_wo'] = matrix(n_embd, n_embd)
-    state_dict['layer'+i+'.mlp_fc1'] = matrix(4 * n_embd, n_embd)
-    state_dict['layer'+i+'.mlp_fc2'] = matrix(n_embd, 4 * n_embd)
+    state_dict['layer'+i+'.attn_wq'] = matrix(n_embd, n_embd);
+    state_dict['layer'+i+'.attn_wk'] = matrix(n_embd, n_embd);
+    state_dict['layer'+i+'.attn_wv'] = matrix(n_embd, n_embd);
+    state_dict['layer'+i+'.attn_wo'] = matrix(n_embd, n_embd);
+    state_dict['layer'+i+'.mlp_fc1'] = matrix(4 * n_embd, n_embd);
+    state_dict['layer'+i+'.mlp_fc2'] = matrix(n_embd, 4 * n_embd);
 }
 // flatten params into a single list[Value]
 var params = [];
-for (var matrix_name in state_dict) {
-	for (var p of state_dict[matrix_name].flat())
-		params.push(p);
+for (var mat_name in state_dict) {
+	for (var row of state_dict[mat_name])
+		for (var p of row)
+			params.push(p);
 }
 print("num params: "+params.length);
 
@@ -311,7 +284,7 @@ function gpt(token_id, pos_id, keys, values) {
     var pos_emb = state_dict['wpe'][pos_id]; // position embedding
     // joint token and position embedding
     var x = array_zip_sum(tok_emb, pos_emb);
-    x = rmsnorm(x)
+    x = rmsnorm(x);
 
     for (var li = 0; li < n_layer; li++) {
 
@@ -337,7 +310,7 @@ function gpt(token_id, pos_id, keys, values) {
 				for (var j = 0; j < head_dim; j++) {
 					sum = sum.add(q_h[j].mul(k_h[t][j]));
 				}
-				attn_logits.push(sum.truediv(head_dim**0.5));
+				attn_logits.push(sum.truediv(Math.pow(head_dim, 0.5)));
 			}
             var attn_weights = softmax(attn_logits);
 			var head_out = [];
@@ -350,7 +323,7 @@ function gpt(token_id, pos_id, keys, values) {
             x_attn = x_attn.concat(head_out);
 		}
         x = linear(x_attn, state_dict['layer'+li+'.attn_wo']);
-		x = array_zip_sum(x, x_residual)
+		x = array_zip_sum(x, x_residual);
 
         // 2) MLP block
         x_residual = x;
@@ -363,7 +336,7 @@ function gpt(token_id, pos_id, keys, values) {
         x = array_zip_sum(x, x_residual);
 	}
 	var logits = linear(x, state_dict['lm_head']);
-    return logits
+    return logits;
 }
 
 // Let there be Adam, the blessed optimizer and its buffers
@@ -372,7 +345,7 @@ var m = new Array(params.length); m.fill(0.0); // first moment buffer
 var v = new Array(params.length); v.fill(0.0); // second moment buffer
 
 // Repeat in sequence
-var num_steps = 1000 // number of training steps
+var num_steps = window.steps || 1000; // number of training steps
 for (var step = 0; step < num_steps; step++) {
 
     // Take single document, tokenize it, surround it with BOS special token on both sides
@@ -407,10 +380,10 @@ for (var step = 0; step < num_steps; step++) {
     for (var i = 0; i < params.length; i++) {
 		var p = params[i];
         m[i] = beta1 * m[i] + (1 - beta1) * p.grad;
-        v[i] = beta2 * v[i] + (1 - beta2) * (p.grad ** 2);
-        var m_hat = m[i] / (1 - beta1 ** (step + 1));
-        var v_hat = v[i] / (1 - beta2 ** (step + 1));
-        p.data -= lr_t * m_hat / (v_hat ** 0.5 + eps_adam);
+        v[i] = beta2 * v[i] + (1 - beta2) * Math.pow(p.grad, 2);
+        var m_hat = m[i] / (1 - Math.pow(beta1, (step + 1)));
+        var v_hat = v[i] / (1 - Math.pow(beta2, (step + 1)));
+        p.data -= lr_t * m_hat / (Math.pow(v_hat, 0.5) + eps_adam);
         p.grad = 0;
 	}
 
@@ -418,16 +391,16 @@ for (var step = 0; step < num_steps; step++) {
 }
 
 // Inference: may the model babble back to us
-var temperature = 0.5 // in (0, 1], control the "creativity" of generated text, low to high
+var temperature = 0.5; // in (0, 1], control the "creativity" of generated text, low to high
 print("--- inference (new, hallucinated names) ---");
 for (var sample_idx = 0; sample_idx < 20; sample_idx++) {
 	var keys = new Array(n_layer); keys.fill([]);
 	var values = new Array(n_layer); values.fill([]);
-    var token_id = BOS;
-    var sample = [];
-    for (var pos_id = 0; pos_id < block_size; pos_id++) {
-        var logits = gpt(token_id, pos_id, keys, values);
-        var probs = [];
+	var token_id = BOS;
+	var sample = [];
+	for (var pos_id = 0; pos_id < block_size; pos_id++) {
+		var logits = gpt(token_id, pos_id, keys, values);
+		var probs = [];
 		for (var l of logits)
 			probs.push(l.truediv(temperature));
 		probs = softmax(probs);
@@ -435,10 +408,10 @@ for (var sample_idx = 0; sample_idx < 20; sample_idx++) {
 		var weights = [];
 		for(var p of probs) weights.push(p.data);
 
-        var token_id = random_choices(array_range(vocab_size), weights)[0]
-        if (token_id == BOS)
-            break
-        sample.push(uchars[token_id]);
+		token_id = random_choices(array_range(vocab_size), weights)[0];
+		if (token_id == BOS)
+			break
+		sample.push(uchars[token_id]);
 	}
 	print("sample "+(sample_idx+1)+": "+sample.join(''));
 }
